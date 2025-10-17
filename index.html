@@ -1,0 +1,665 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TikTok Growth Assistant — Single-file Prototype</title>
+  <style>
+    :root{--bg:#071023;--card:#0b1220;--muted:#94a3b8;--accent:#06b6d4;--glass:rgba(255,255,255,0.03)}
+    *{box-sizing:border-box;font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial}
+    body{margin:0;min-height:100vh;background:linear-gradient(180deg,#071025 0%, #03101a 100%);color:#e6eef6;padding:20px}
+    .wrap{max-width:1100px;margin:0 auto}
+    header{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+    header h1{font-size:18px;margin:0}
+    .muted{color:var(--muted)}
+    .grid{display:grid;grid-template-columns:1fr 360px;gap:18px}
+    .card{background:var(--card);border-radius:12px;padding:14px;box-shadow:0 6px 18px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.03)}
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:8px}
+    input[type=text], textarea, select{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:var(--glass);color:#e6eef6}
+    textarea{min-height:90px}
+    .row{display:flex;gap:10px;align-items:center}
+    button{background:linear-gradient(90deg,var(--accent),#8b5cf6);color:#021025;padding:10px 12px;border-radius:9px;border:none;cursor:pointer;font-weight:700}
+    .small{font-size:13px}
+    .video-preview{width:100%;border-radius:8px;background:#000;display:flex;align-items:center;justify-content:center;height:220px;overflow:hidden}
+    .suggest-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+    .tag{background:rgba(255,255,255,0.03);padding:6px 8px;border-radius:999px;border:1px solid rgba(255,255,255,0.03);font-weight:600}
+    .score{font-size:28px;font-weight:700}
+    canvas{width:100%!important;height:140px!important}
+    nav.tabs{display:flex;gap:8px;margin-bottom:12px}
+    nav.tabs button{background:transparent;border:1px solid rgba(255,255,255,0.03);color:var(--muted);padding:8px 10px;border-radius:8px}
+    nav.tabs button.active{background:linear-gradient(90deg,var(--accent),#8b5cf6);color:#021025}
+    footer{margin-top:18px;color:var(--muted);font-size:13px}
+    .list{max-height:260px;overflow:auto}
+    .caption-suggestion{cursor:pointer;border-radius:8px;padding:6px 8px;border:none;background:rgba(255,255,255,0.03);color:inherit;margin:6px 0 0 0}
+    .hint{font-size:12px;color:var(--muted);margin-top:6px}
+    @media(max-width:980px){.grid{grid-template-columns:1fr;}.video-preview{height:180px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>TikTok Growth Assistant — Prototype (single file)</h1>
+     
+    
+    </header>
+
+    <nav class="tabs card">
+      <button id="tabAnalyze" class="active">Analyze</button>
+      <button id="tabAB">A/B Tests</button>
+      <button id="tabTrends">Trends</button>
+      <button id="tabSettings">Settings</button>
+    </nav>
+
+    <div style="margin-bottom:10px">
+      <button id="generateCaption">✨ Generate AI Captions</button>
+     
+    </div>
+
+    <div id="captionResults" class="card" style="margin-bottom:12px;display:none"></div>
+
+    <div class="grid">
+      <section id="main" class="card">
+        <!-- Analyze view -->
+        <div id="viewAnalyze">
+          <label>Upload video (or paste TikTok URL)</label>
+          <div class="row" style="gap:8px;margin-bottom:10px">
+            <input id="videoFile" type="file" accept="video/*">
+            <input id="tiktokUrl" type="text" placeholder="https://vm.tiktok.com/… (optional)">
+            <select id="privacy" style="max-width:140px">
+              <option value="public">Public</option>
+              <option value="unlisted">Unlisted</option>
+              <option value="private">Private</option>
+            </select>
+          </div>
+
+          <div class="video-preview card" id="previewBox">
+            <div class="muted">No video selected — preview will appear here.</div>
+          </div>
+
+          <label style="margin-top:12px">Caption</label>
+          <textarea id="caption" placeholder="Write your caption here..."></textarea>
+
+          <label style="margin-top:10px">Hashtags (comma separated)</label>
+          <input id="hashtags" type="text" placeholder="#fun,#dance">
+
+          <div style="display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap">
+            <button id="analyzeBtn">Analyze</button>
+            <button id="saveDraftBtn" style="background:transparent;border:1px solid rgba(255,255,255,0.04);">Save draft</button>
+            <button id="uploadCsvBtn">Upload Analytics CSV</button>
+            <div class="muted small">Drafts are stored locally in your browser.</div>
+          </div>
+
+          <section style="margin-top:14px">
+            <h3 style="margin:0 0 8px 0">Suggestions & Generator</h3>
+            <div id="suggestions" class="muted">Use the "Analyze" button to get tailored suggestions.</div>
+
+            <div style="margin-top:12px">
+              <div class="small muted">Caption generator — click any suggestion to copy into the caption box</div>
+              <div id="captionGenerator" class="suggest-list" style="margin-top:8px"></div>
+            </div>
+
+            <div style="margin-top:12px">
+            
+              <div id="drafts" class="list"></div>
+            </div>
+          </section>
+        </div>
+
+        <!-- A/B Tests view -->
+        <div id="viewAB" style="display:none">
+          <h3>Create A/B test variations</h3>
+          <label>Base caption</label>
+          <textarea id="abBaseCaption"></textarea>
+          <label style="margin-top:8px">Variations (one per line — only caption changes)</label>
+          <textarea id="abVariations" placeholder="Variant A\nVariant B\nVariant C"></textarea>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button id="createAB">Create Test</button>
+            <button id="exportCsv" style="background:transparent;border:1px solid rgba(255,255,255,0.04);">Export CSV</button>
+          </div>
+          <div id="abList" style="margin-top:10px" class="list"></div>
+        </div>
+
+        <!-- Trends view -->
+        <div id="viewTrends" style="display:none">
+          <h3>Trends (simulated)</h3>
+          <div class="row" style="margin-bottom:8px">
+            <button id="fetchTrends">Fetch simulated trends</button>
+            <button id="openIntegrations" style="background:transparent;border:1px solid rgba(255,255,255,0.04);">Integration tips</button>
+          </div>
+          <div class="small muted">These trends are simulated in the prototype. In production you would fetch them from TikTok/third-party trend APIs on the server.</div>
+          <div style="margin-top:8px" id="trendList" class="suggest-list"></div>
+        </div>
+
+      
+
+      </section>
+
+      <aside class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div class="muted">Engagement estimate</div>
+            <div class="score" id="score">—</div>
+            <div class="muted small">Predicted relative engagement and quick insights.</div>
+          </div>
+        </div>
+
+        <!-- Score chart -->
+        <canvas id="scoreChart" aria-hidden></canvas>
+
+        <!-- Analytics chart (CSV upload) -->
+        <canvas id="analyticsChart" aria-hidden style="margin-top:8px"></canvas>
+
+        <div style="margin-top:10px">
+          <div class="muted">Recommended posting windows</div>
+          <div class="suggest-list" id="times">
+            <div class="tag">12:00–13:30</div>
+            <div class="tag">18:00–20:00</div>
+            <div class="tag">21:00–22:30</div>
+          </div>
+        </div>
+
+        <div style="margin-top:10px">
+          <div class="muted">Suggested hashtags</div>
+          <div id="suggestedTags" class="suggest-list"></div>
+        </div>
+
+        <div style="margin-top:10px">
+          <div class="muted">Trending sound suggestions (simulated)</div>
+          <div id="sounds" class="suggest-list">
+            <div class="tag">CatchyHook</div>
+            <div class="tag">TransitionDrop</div>
+            <div class="tag">SoftPiano</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+  
+  </div>
+
+<script>
+/* -------------------- Utilities -------------------- */
+const tokenize = text => (text||'').toLowerCase().replace(/[^\w#\s]/g,'').split(/\s+/).filter(Boolean);
+const topWords = (text, n=6) => {
+  const stop = new Set(['the','and','for','with','this','that','your','you','are','from','but','have','has','was','will','just','like','video','watch','get','top']);
+  const words = tokenize(text).filter(w=>!stop.has(w) && !w.startsWith('http'));
+  const freq = {};
+  words.forEach(w=>freq[w]=(freq[w]||0)+1);
+  return Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,n).map(x=>x[0]);
+};
+
+/* -------------------- DOM -------------------- */
+const fileInput = document.getElementById('videoFile');
+const previewBox = document.getElementById('previewBox');
+const analyzeBtn = document.getElementById('analyzeBtn');
+const captionEl = document.getElementById('caption');
+const hashtagsEl = document.getElementById('hashtags');
+const suggestionsEl = document.getElementById('suggestions');
+const suggestedTagsEl = document.getElementById('suggestedTags');
+const scoreEl = document.getElementById('score');
+const scoreChartCtx = document.getElementById('scoreChart').getContext('2d');
+const analyticsChartCtx = document.getElementById('analyticsChart').getContext('2d');
+const captionGenEl = document.getElementById('captionGenerator');
+const draftsEl = document.getElementById('drafts');
+const captionResults = document.getElementById('captionResults');
+
+let videoDuration = null;
+let currentVideoFile = null;
+let trendingSample = ['#fyp','#viral','#asmr','#lifehack','#trend','#dance'];
+
+/* -------------------- Video preview -------------------- */
+fileInput.addEventListener('change', e=>{
+  const file = e.target.files[0];
+  currentVideoFile = file || null;
+  if(!file) return;
+  const url = URL.createObjectURL(file);
+  previewBox.innerHTML = '';
+  const v = document.createElement('video');
+  v.src = url; v.controls = true; v.style.width='100%';
+  v.addEventListener('loadedmetadata', ()=>{ videoDuration = v.duration; });
+  previewBox.appendChild(v);
+});
+
+/* -------------------- Score chart drawing -------------------- */
+function drawScoreChart(baseline, predicted){
+  const ctx = scoreChartCtx;
+  ctx.canvas.width = ctx.canvas.clientWidth;
+  ctx.canvas.height = 160;
+  ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
+  const w = ctx.canvas.width, h = ctx.canvas.height;
+  const pad = 28;
+  const max = Math.max(baseline,predicted,1);
+  const bw = (w-2*pad)/3;
+  // baseline
+  const bh = (baseline/max)*(h-2*pad);
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.fillRect(pad, h-pad-bh, bw, bh);
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.fillText('Baseline', pad+4, h-8);
+  // predicted
+  const left2 = pad + bw + 20;
+  const ph = (predicted/max)*(h-2*pad);
+  ctx.fillStyle = 'rgba(255,255,255,0.16)';
+  ctx.fillRect(left2, h-pad-ph, bw, ph);
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.fillText('Predicted', left2+4, h-8);
+}
+
+/* -------------------- Scoring model -------------------- */
+function computeScore({duration, caption, hashtags}){
+  let score = 30;
+  if(duration){ if(duration<=15) score+=22; else if(duration<=60) score+=12; else score+=2; }
+  const hasCTA = /(follow|like|duet|comment|share|tap|save)/i.test(caption);
+  const hasEmoji = /[^\x00-\x7F]/.test(caption);
+  const hasHook = /(\?|\bwhy\b|\bhow\b|\bwatch\b|\bwait\b|\bsecret\b|\bneed\b|\bthis is\b)/i.test(caption);
+  const len = (caption||'').length;
+  if(hasCTA) score+=10;
+  if(hasEmoji) score+=6;
+  if(hasHook) score+=8;
+  if(len>20 && len<120) score+=8; else if(len>=120) score+=2;
+  const tags = (hashtags||'').split(',').map(s=>s.trim()).filter(Boolean);
+  score += Math.min(15, tags.length * 3);
+  const trendingBoost = tags.filter(t=> trendingSample.includes(t.toLowerCase())).length * 4;
+  score += trendingBoost;
+  score = Math.max(5, Math.min(98, Math.round(score)));
+  return score;
+}
+async function fetchTrends() {
+  const res = await fetch("/api/trends");
+  const data = await res.json();
+  console.log("Live trends:", data);
+}
+
+
+/* -------------------- Caption generation (server call) -------------------- */
+async function callCaptionAPI(idea){
+  // returns array of captions or throws
+  const res = await fetch("/api/caption", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ idea })
+  });
+  const data = await res.json();
+  if(!res.ok) throw new Error(data?.error || 'Caption API error');
+  // server might return:
+  // { ok: true, captions: [...] }  OR  { ok: true, caption: "1. ...\n2. ..." } OR { ok: true, caption: "..." }
+  if (Array.isArray(data.captions)) return data.captions.map(String);
+  if (Array.isArray(data.caption)) return data.caption.map(String);
+  if (typeof data.captions === 'string') return data.captions.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  if (typeof data.caption === 'string') return data.caption.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  // fallback: try raw text fields
+  if (typeof data.text === 'string') return data.text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  throw new Error('Unexpected caption response');
+}
+
+document.getElementById("generateCaption").addEventListener("click", async () => {
+  const captionBox = captionEl; // explicit reference
+  const idea = captionBox.value.trim() || "fun video";
+  captionResults.style.display = 'block';
+  captionResults.innerHTML = "⏳ Generating captions...";
+  try {
+    const captions = await callCaptionAPI(idea);
+    if (!captions || !captions.length) {
+      captionResults.innerHTML = "⚠️ No captions returned.";
+      return;
+    }
+    captionResults.innerHTML = captions.map(c => {
+      const safe = escapeHtml(c);
+      return `<button class="caption-suggestion" type="button">${safe}</button>`;
+    }).join("<br>");
+    captionResults.querySelectorAll('.caption-suggestion').forEach(btn=>{
+      btn.addEventListener('click', ()=> {
+        captionBox.value = btn.textContent;
+        analyze(); // update suggestions/score
+      });
+    });
+  } catch (err) {
+    console.error(err);
+    captionResults.innerHTML = `❌ Caption generation failed: ${escapeHtml(err.message || String(err))}`;
+  }
+});
+
+/* -------------------- small helper -------------------- */
+function escapeHtml(s){ return (s+'').replace(/[&<>"]/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+
+/* -------------------- Analyze + suggestions -------------------- */
+function analyze(){
+  const caption = captionEl.value.trim();
+  const hashtagsText = hashtagsEl.value.trim();
+  const keywords = topWords(caption + ' ' + hashtagsText);
+
+  // suggested tags
+  const suggestedTags = keywords.slice(0,6).map(w => w.startsWith('#')? w : ('#'+w));
+  suggestedTagsEl.innerHTML = '';
+  suggestedTags.forEach(t=>{ const d=document.createElement('div'); d.className='tag'; d.textContent=t; suggestedTagsEl.appendChild(d); });
+
+  // caption suggestions & tips
+  const hasCTA = /(follow|like|duet|comment|share|tap|save)/i.test(caption);
+  const hasEmoji = /[^\x00-\x7F]/.test(caption);
+  const suggestions = [];
+  if(!caption) suggestions.push('Write a short curiosity-driven caption that teases the video');
+  if(!hasCTA) suggestions.push('Add a CTA: "Follow for more" or "Comment your thoughts"');
+  if(!hasEmoji) suggestions.push('Add 1–2 emojis to increase scannability');
+  if(videoDuration){ if(videoDuration>60) suggestions.push('Place the key moment within the first 5 seconds'); }
+  suggestionsEl.innerHTML = '';
+  suggestions.forEach(s=>{ const p=document.createElement('div'); p.className='muted small'; p.style.marginTop='6px'; p.textContent='• '+s; suggestionsEl.appendChild(p); });
+
+  // small built-in caption templates
+  const gens = generateCaptions(keywords);
+  captionGenEl.innerHTML = '';
+  gens.forEach(g=>{ const b=document.createElement('div'); b.className='tag'; b.textContent=g; b.style.cursor='pointer'; b.title='Click to copy to caption'; b.addEventListener('click', ()=>{ captionEl.value = g; analyze(); }); captionGenEl.appendChild(b); });
+
+  // score + chart
+  const score = computeScore({duration: videoDuration, caption, hashtags: hashtagsText});
+  const baseline = 100;
+  const predicted = Math.round(baseline * (score/60));
+  scoreEl.textContent = `${score}/100`;
+  drawScoreChart(baseline, predicted);
+
+  // suggested sounds (simulated)
+  const sounds = document.getElementById('sounds');
+  sounds.innerHTML = '';
+  ['CatchyHook','TransitionDrop','SoftPiano'].forEach(s=>{ const d=document.createElement('div'); d.className='tag'; d.textContent=s; sounds.appendChild(d); });
+
+  recommendTimes();
+}
+
+/* -------------------- small caption template generator -------------------- */
+const templates = [
+  "You won't believe what happens next — {kw}",
+  "How to {kw} in {n} seconds",
+  "The secret to {kw}",
+  "Top {n} tips for {kw}",
+  "I tried {kw} so you don't have to",
+  "From 0 → {kw}: quick guide"
+];
+function generateCaptions(keywords){
+  const kws = (keywords && keywords.length) ? keywords : ['this'];
+  const n = 3 + Math.floor(Math.random()*3);
+  return templates.map(t => t.replace('{kw}', kws[0]).replace('{n}', n));
+}
+
+/* -------------------- Posting windows heuristic -------------------- */
+function recommendTimes(){
+  const now = new Date();
+  const localHour = now.getHours();
+  const timesEl = document.getElementById('times');
+  timesEl.innerHTML = '';
+  const windows = [];
+  if(localHour < 12) windows.push('12:00–13:30','18:00–20:00','21:00–22:30');
+  else if(localHour < 18) windows.push('18:00–20:00','12:00–13:30','21:00–22:30');
+  else windows.push('21:00–22:30','18:00–20:00','12:00–13:30');
+  windows.forEach(w=>{ const d=document.createElement('div'); d.className='tag'; d.textContent=w; timesEl.appendChild(d); });
+}
+
+/* -------------------- Drafts (localStorage) -------------------- */
+function saveDraft(){
+  const drafts = JSON.parse(localStorage.getItem('tg_drafts')||'[]');
+  const cap = captionEl.value.trim();
+  const tags = hashtagsEl.value.trim();
+  const name = prompt('Draft name (short):','Draft ' + new Date().toLocaleString());
+  if(!name) return;
+  drafts.unshift({name, caption: cap, hashtags: tags, date: new Date().toISOString()});
+  localStorage.setItem('tg_drafts', JSON.stringify(drafts.slice(0,50)));
+  renderDrafts();
+}
+function renderDrafts(){
+  const drafts = JSON.parse(localStorage.getItem('tg_drafts')||'[]');
+  draftsEl.innerHTML = '';
+  drafts.forEach((d,i)=>{
+    const el = document.createElement('div'); el.style.display='flex'; el.style.justifyContent='space-between'; el.style.alignItems='center'; el.style.padding='8px 0';
+    const left = document.createElement('div'); left.innerHTML = `<div style="font-weight:700">${escapeHtml(d.name)}</div><div class="muted small">${new Date(d.date).toLocaleString()}</div>`;
+    const right = document.createElement('div');
+    const load = document.createElement('button'); load.textContent = 'Load'; load.style.marginRight='6px';
+    load.addEventListener('click', ()=>{ captionEl.value=d.caption; hashtagsEl.value=d.hashtags; analyze(); });
+    const del = document.createElement('button'); del.textContent = 'Delete'; del.style.background='transparent'; del.style.border='1px solid rgba(255,255,255,0.03)';
+    del.addEventListener('click', ()=>{ if(confirm('Delete draft?')){ const arr = JSON.parse(localStorage.getItem('tg_drafts')||'[]'); arr.splice(i,1); localStorage.setItem('tg_drafts', JSON.stringify(arr)); renderDrafts(); }});
+    right.appendChild(load); right.appendChild(del);
+    el.appendChild(left); el.appendChild(right);
+    draftsEl.appendChild(el);
+  });
+}
+
+/* -------------------- A/B tests (client-only manager) -------------------- */
+function createABTest(){
+  const base = document.getElementById('abBaseCaption').value.trim();
+  const raw = document.getElementById('abVariations').value.trim();
+  if(!base || !raw) return alert('Provide base caption and at least one variation');
+  const vars = raw.split('\n').map(s=>s.trim()).filter(Boolean);
+  const tests = JSON.parse(localStorage.getItem('tg_abtests')||'[]');
+  const id = 'test_' + Date.now();
+  const item = {id, base, variations: vars, created: new Date().toISOString()};
+  tests.unshift(item);
+  localStorage.setItem('tg_abtests', JSON.stringify(tests));
+  renderABTests();
+}
+function renderABTests(){
+  const list = JSON.parse(localStorage.getItem('tg_abtests')||'[]');
+  const el = document.getElementById('abList'); el.innerHTML='';
+  list.forEach(t=>{
+    const container = document.createElement('div'); container.style.padding='8px 0'; container.style.borderBottom='1px solid rgba(255,255,255,0.02)';
+    container.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><div><strong>${escapeHtml(t.id)}</strong><div class="muted small">${new Date(t.created).toLocaleString()}</div></div></div>`;
+    const vwrap = document.createElement('div'); vwrap.style.marginTop='8px';
+    t.variations.forEach(v=>{ const d = document.createElement('div'); d.className='tag'; d.textContent = v; vwrap.appendChild(d); });
+    const actions = document.createElement('div'); actions.style.marginTop='8px';
+    const sim = document.createElement('button'); sim.textContent='Simulate run'; sim.addEventListener('click', ()=>simulateAB(t.id));
+    const del = document.createElement('button'); del.textContent='Delete'; del.style.background='transparent'; del.style.border='1px solid rgba(255,255,255,0.03)'; del.style.marginLeft='6px';
+    del.addEventListener('click', ()=>{ if(confirm('Delete test?')){ const arr = JSON.parse(localStorage.getItem('tg_abtests')||'[]'); const idx = arr.findIndex(x=>x.id===t.id); if(idx>=0){ arr.splice(idx,1); localStorage.setItem('tg_abtests', JSON.stringify(arr)); renderABTests(); } } });
+    actions.appendChild(sim); actions.appendChild(del);
+    container.appendChild(vwrap); container.appendChild(actions);
+    el.appendChild(container);
+  });
+}
+function simulateAB(testId){
+  const list = JSON.parse(localStorage.getItem('tg_abtests')||'[]');
+  const t = list.find(x=>x.id===testId); if(!t) return;
+  const results = t.variations.map(v => ({v, score: computeScore({duration: videoDuration || 20, caption: v, hashtags: hashtagsEl.value})}));
+  results.sort((a,b)=>b.score-a.score);
+  alert('Simulated ranking (higher is better):\n' + results.map(r=>`${r.v} — ${r.score}/100`).join('\n'));
+}
+function exportABCsv(){
+  const tests = JSON.parse(localStorage.getItem('tg_abtests')||'[]');
+  if(!tests.length) return alert('No A/B tests to export');
+  let csv = 'test_id,variation,score\n';
+  tests.forEach(t=>{
+    t.variations.forEach(v=>{ const s = computeScore({duration: videoDuration || 20, caption: v, hashtags: hashtagsEl.value}); csv += `${t.id},"${v.replace(/"/g,'""')}",${s}\n`; })
+  });
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'ab_tests.csv'; document.body.appendChild(a); a.click(); a.remove();
+}
+
+/* -------------------- Trends (simulated) -------------------- */
+function fetchSimulatedTrends(){
+  const tags = ['#fyp','#viral','#duet','#lifehack','#challenge','#greenscreen','#trend'];
+  const wrap = document.getElementById('trendList'); wrap.innerHTML = '';
+  tags.forEach(t=>{ const d=document.createElement('div'); d.className='tag'; d.textContent=t; d.addEventListener('click', ()=>{ hashtagsEl.value = (hashtagsEl.value? hashtagsEl.value + ',' : '') + t; }); wrap.appendChild(d); });
+}
+
+/* ---------------- CSV Upload + Analytics (client-side) ---------------- */
+const csvInput = document.createElement("input");
+csvInput.type = "file";
+csvInput.accept = ".csv";
+csvInput.style.display = "none";
+document.body.appendChild(csvInput);
+document.getElementById('uploadCsvBtn').addEventListener('click', ()=> csvInput.click());
+csvInput.addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    const text = evt.target.result;
+    processCSV(text);
+  };
+  reader.readAsText(file);
+});
+function processCSV(text) {
+  // best-effort CSV parse (simple)
+  const rows = text.trim().split("\n").map(r => r.split(","));
+  if(rows.length < 2) return alert('CSV parse failed or file empty');
+  const header = rows[0].map(h => h.trim().toLowerCase());
+  const data = rows.slice(1).map(r => {
+    let obj = {};
+    header.forEach((h, i) => obj[h] = (r[i] || '').trim());
+    return obj;
+  });
+
+  let dateKey = header.find(h => h.includes("date")) || header[0];
+  let viewsKey = header.find(h => h.includes("views")||h.includes("view"));
+  let likesKey = header.find(h => h.includes("likes")||h.includes("like"));
+  let commentsKey = header.find(h => h.includes("comments")||h.includes("comment"));
+  let sharesKey = header.find(h => h.includes("shares")||h.includes("share"));
+  let followersKey = header.find(h => h.includes("followers")||h.includes("follower"));
+
+  const summary = { totalViews:0, totalLikes:0, totalComments:0, totalShares:0, totalFollowers:0, daily:[] };
+  data.forEach(row => {
+    const safeInt = v => {
+      if(!v) return 0;
+      const cleaned = v.replace(/[,+]/g,'').replace(/"/g,'').trim();
+      const n = parseInt(cleaned,10);
+      return Number.isFinite(n) ? n : 0;
+    };
+    const views = viewsKey ? safeInt(row[viewsKey]) : 0;
+    const likes = likesKey ? safeInt(row[likesKey]) : 0;
+    const comments = commentsKey ? safeInt(row[commentsKey]) : 0;
+    const shares = sharesKey ? safeInt(row[sharesKey]) : 0;
+    const followers = followersKey ? safeInt(row[followersKey]) : 0;
+    summary.totalViews += views;
+    summary.totalLikes += likes;
+    summary.totalComments += comments;
+    summary.totalShares += shares;
+    summary.totalFollowers += followers;
+    summary.daily.push({ date: row[dateKey], views, likes, comments, shares, followers });
+  });
+  renderAnalytics(summary);
+}
+
+/* -------------------- Render analytics + best-time -------------------- */
+function renderAnalytics(summary) {
+  const sugEl = document.getElementById("suggestions");
+  sugEl.innerHTML = "";
+  const p = document.createElement("div");
+  p.className = "muted small";
+  p.style.marginTop = "6px";
+  p.innerHTML = `
+    <strong>Analytics Summary</strong><br>
+    Views: ${summary.totalViews.toLocaleString()}<br>
+    Likes: ${summary.totalLikes.toLocaleString()}<br>
+    Comments: ${summary.totalComments.toLocaleString()}<br>
+    Shares: ${summary.totalShares.toLocaleString()}<br>
+    Followers gained: ${summary.totalFollowers.toLocaleString()}
+  `;
+  sugEl.appendChild(p);
+
+  // Draw simple line chart
+  const ctx = analyticsChartCtx;
+  ctx.canvas.width = ctx.canvas.clientWidth;
+  ctx.canvas.height = 140;
+  ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
+  const daily = summary.daily.slice(-14);
+  if(daily.length === 0){
+    ctx.fillStyle = "#94a3b8";
+    ctx.fillText("No daily data found in CSV", 10, 20);
+  } else {
+    const maxViews = Math.max(...daily.map(d => d.views), 1);
+    const w = ctx.canvas.width, h = ctx.canvas.height, pad = 30;
+    const step = daily.length > 1 ? (w - 2*pad) / (daily.length-1) : 1;
+    ctx.strokeStyle = "#06b6d4";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    daily.forEach((d,i)=>{
+      const x = pad + i*step;
+      const y = h - pad - (d.views/maxViews)*(h-2*pad);
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+    ctx.fillStyle = "#06b6d4";
+    daily.forEach((d,i)=>{
+      const x = pad + i*step;
+      const y = h - pad - (d.views/maxViews)*(h-2*pad);
+      ctx.beginPath();
+      ctx.arc(x,y,2,0,Math.PI*2);
+      ctx.fill();
+    });
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "12px sans-serif";
+    ctx.fillText("Views (last 14 rows)", pad, 14);
+  }
+
+  analyzeBestTimes(summary);
+}
+
+/* ---------------- Best Posting Time Analysis ---------------- */
+function analyzeBestTimes(summary) {
+  const slots = {};
+  summary.daily.forEach(d => {
+    if (!d.date) return;
+    const dt = new Date(d.date);
+    if (isNaN(dt)) return;
+    const day = dt.toLocaleDateString("en-US", { weekday: "short" });
+    const hour = dt.getHours();
+    const slot = `${day}-${hour}`;
+    if (!slots[slot]) slots[slot] = { views: 0, count: 0 };
+    slots[slot].views += d.views;
+    slots[slot].count += 1;
+  });
+  const slotAverages = Object.entries(slots).map(([k, v]) => ({
+    slot: k, avg: v.count ? v.views / v.count : 0, count: v.count
+  })).sort((a,b)=>b.avg - a.avg);
+  const timesBox = document.getElementById("times");
+  if(slotAverages.length){
+    timesBox.innerHTML = '';
+    slotAverages.slice(0,3).forEach(s => {
+      const [day, hour] = s.slot.split("-");
+      const h = Number(hour);
+      const label = `${day} ${h}:00–${h+1}:00`;
+      const el = document.createElement('div');
+      el.className = 'tag';
+      el.innerHTML = `<strong>${label}</strong><div class="muted small">avg ${Math.round(s.avg)} views (${s.count} samples)</div>`;
+      timesBox.appendChild(el);
+    });
+  }
+}
+
+/* -------------------- Tabs wiring -------------------- */
+document.getElementById('tabAnalyze').addEventListener('click', ()=>{ setActive('Analyze'); });
+document.getElementById('tabAB').addEventListener('click', ()=>{ setActive('AB'); });
+document.getElementById('tabTrends').addEventListener('click', ()=>{ setActive('Trends'); });
+document.getElementById('tabSettings').addEventListener('click', ()=>{ setActive('Settings'); });
+function setActive(name){
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('viewAnalyze').style.display = name==='Analyze' ? '' : 'none';
+  document.getElementById('viewAB').style.display = name==='AB' ? '' : 'none';
+  document.getElementById('viewTrends').style.display = name==='Trends' ? '' : 'none';
+  document.getElementById('viewSettings').style.display = name==='Settings' ? '' : 'none';
+  if(name==='Analyze') document.getElementById('tabAnalyze').classList.add('active');
+  if(name==='AB') document.getElementById('tabAB').classList.add('active');
+  if(name==='Trends') document.getElementById('tabTrends').classList.add('active');
+  if(name==='Settings') document.getElementById('tabSettings').classList.add('active');
+}
+
+/* -------------------- Event bindings -------------------- */
+analyzeBtn.addEventListener('click', analyze);
+document.getElementById('saveDraftBtn').addEventListener('click', saveDraft);
+window.addEventListener('load', ()=>{ renderDrafts(); renderABTests(); drawScoreChart(100,100); recommendTimes(); });
+
+// AB tests
+document.getElementById('createAB').addEventListener('click', createABTest);
+document.getElementById('exportCsv').addEventListener('click', exportABCsv);
+
+// trends
+document.getElementById('fetchTrends').addEventListener('click', fetchSimulatedTrends);
+
+// CSV upload
+document.getElementById('uploadCsvBtn').addEventListener('click', ()=> csvInput.click());
+
+// integration tips
+document.getElementById('openIntegrations').addEventListener('click', ()=>{
+  alert('Integration tips:\n1) Create a small server (Node/Express) to fetch live trends.\n2) Use TikTok for Developers for account analytics (requires OAuth).\n3) Keep API keys on the server, not in client JS.');
+});
+document.getElementById('connectTikTokBtn').addEventListener('click', ()=> {
+  window.location.href = '/auth/tiktok';
+});
+</script>
+</body>
+</html>
